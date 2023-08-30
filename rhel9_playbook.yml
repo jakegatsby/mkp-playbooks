@@ -1,0 +1,184 @@
+---
+- name: Setup OVS on a RHEL 9 host
+  hosts: all
+  become: true
+  vars_files: vars.yml
+  tasks:
+      - name: Add rheldev repos
+        # http://download.devel.redhat.com/rel-eng/internal/rcm-tools-fedora.repo
+        ansible.builtin.copy:
+          src: rheldev
+          dest: /etc/yum.repos.d/rheldev
+      - name: Add pre-req packages
+        ansible.builtin.dnf:
+          name: "{{ packages }}"
+          state: latest
+      - name: Add pre-req pip packages
+        ansible.builtin.pip:
+          name: "{{ pip_packages }}"
+          state: latest
+      - name: Collect repositories
+        ansible.builtin.git:
+          repo: "{{ item['repo'] }}"
+          dest: "{{ item['dest'] }}"
+          version: "{{ item['branch'] }}"
+        loop: "{{ git_repos }}"
+
+      # DPDK
+      - name: Check DPDK meson has run exists
+        ansible.builtin.stat:
+          path: /root/dpdk/build
+        register: meson_ran
+      - name: Run meson
+        when: not meson_ran
+        ansible.builtin.command:
+          chdir: /root/dpdk/
+          cmd: meson -Dexamples=all -Dbuildtype=debug -Dplatform=native build --prefix=/usr/
+      - name: Build DPDK
+        ansible.builtin.command:
+          chdir: /root/dpdk/build
+          cmd: ninja install
+      - name: update ldconfig
+        ansible.builtin.command: ldconfig
+
+      # OVS
+      - name: Check if OVS is booted
+        ansible.builtin.stat:
+          path: /root/ovs/configure
+        register: boot_ran
+      - name: Boot OVS
+        when: not boot_ran
+        ansible.builtin.command:
+          chdir: /root/ovs/
+          cmd: /root/ovs/boot.sh
+      - name: Check if OVS is configured
+        ansible.builtin.stat:
+          path: /root/ovs/Makefile
+        register: configure_ran
+      - name: Configure OVS
+        when: not configure_ran
+        ansible.builtin.command:
+          chdir: /root/ovs/
+          cmd: /root/ovs/configure CFLAGS="-ggdb -O2 -march=native" --with-dpdk=shared --prefix=/usr --localstatedir=/var --sysconfdir=/etc
+      - name: Build and install OVS
+        ansible.builtin.command:
+          chdir: /root/ovs/
+          cmd: make install -j
+      - name: Install OVS Python
+        ansible.builtin.command:
+          chdir: /root/ovs/python
+          cmd: pip install .
+
+      # OVN
+      - name: Check if OVN is booted
+        ansible.builtin.stat:
+          path: /root/ovn/configure
+        register: boot_ran
+      - name: Boot OVN
+        when: not boot_ran
+        ansible.builtin.command:
+          chdir: /root/ovn/
+          cmd: /root/ovn/boot.sh
+      - name: Check if OVN is configured
+        ansible.builtin.stat:
+          path: /root/ovn/Makefile
+        register: configure_ran
+      - name: Configure OVN
+        when: not configure_ran
+        ansible.builtin.command:
+          chdir: /root/ovn/
+          cmd: /root/ovn/configure --with-ovs-source=../ovs --prefix=/usr --localstatedir=/var --sysconfdir=/etc CFLAGS="-ggdb -O2 -march=native"
+      - name: Build and install OVN
+        ansible.builtin.command:
+          chdir: /root/ovn/
+          cmd: make install -j
+
+      # Setup environment
+      - name: Add a single line of text to a file
+        ansible.builtin.lineinfile:
+          path: /root/.bashrc
+          line: export PATH=$PATH:/usr/share/openvswitch/scripts
+          state: present
+      - name: Check for ovsdb schema
+        ansible.builtin.stat:
+          path: /usr/share/openvswitch/vswitch.ovsschema
+        register: ovsschema_exists
+      - name: Initialize conf.db
+        when: not ovsschema_exists
+        ansible.builtin.command:
+          cmd: ovsdb-tool create /etc/openvswitch/conf.db /usr/share/openvswitch/vswitch.ovsschema
+      - name: Insert kernel module
+        # FIXME: Add a check to see if we need to
+        ansible.builtin.command:
+          cmd: ovs-kmod-ctl insert
+      - name: Initial startup
+        # FIXME: Add a check to see if DPDK is already initialized
+        ansible.builtin.shell:
+          cmd: ovs-ctl start --system-id=random && ovs-vsctl --no-wait init && ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true && ovs-ctl stop
+      - name: Modified boot parameters
+        ansible.builtin.lineinfile:
+          state: present
+          dest: /etc/default/grub
+          backrefs: yes
+          regexp: '^(GRUB_CMDLINE_LINUX=(?!.* iommu=pt intel_iommu=on)\"[^\"]+)(\".*)'
+          line: '\1 iommu=pt intel_iommu=on\2'
+        register: bootargs
+      - name: Update grub config
+        when: bootargs.changed
+        ansible.builtin.shell:
+          cmd:
+            grub2-mkconfig > /boot/grub2/grub.cfg
+      - name: Autoload vfio-pci
+        ansible.builtin.lineinfile:
+          state: present
+          dest: /etc/modules-load.d/vfio-pci.conf
+          line: vfio-pci
+        register: modules
+      - name: Load vfio-pci
+        when: vfio-pci.changed
+        ansible.builtin.command:
+          cmd: modprobe vfio-pci
+      - name: Mark selinux permissive
+        ansible.builtin.lineinfile:
+          dest: /etc/selinux/config
+          regexp: '^SELINUX='
+          line: SELINUX=permissive
+        register: selinux
+      - name: Set selinux permissive
+        when: selinux.changed
+        ansible.builtin.command:
+          cmd: setenforce permissive
+
+      # FIXME: This could be a loop somehow
+      - name: update nofile soft limits
+        ansible.builtin.lineinfile:
+          dest: /etc/security/limits.conf
+          regexp: '.*soft   nofile.*'
+          line: '*     soft   nofile  65535'
+      - name: update nofile hard limits
+        ansible.builtin.lineinfile:
+          dest: /etc/security/limits.conf
+          regexp: '.*hard   nofile.*'
+          line: '*     hard   nofile  65535'
+      - name: update core soft limits
+        ansible.builtin.lineinfile:
+          dest: /etc/security/limits.conf
+          regexp: '.*soft   core.*'
+          line: '*     soft   core  unlimited'
+      - name: update core hard limits
+        ansible.builtin.lineinfile:
+          dest: /etc/security/limits.conf
+          regexp: '.*hard   core.*'
+          line: '*     hard   core  unlimited'
+
+      # Make GDB a bit nicer
+      - name: Don't paginate in GDB
+        ansible.builtin.lineinfile:
+          dest: /root/.gdbinit
+          state: present
+          line: set pagination off
+      - name: Don't print thread events in GDB
+        ansible.builtin.lineinfile:
+          dest: /root/.gdbinit
+          state: present
+          line: set print thread-events off

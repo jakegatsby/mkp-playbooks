@@ -1,0 +1,56 @@
+packages:
+  - git
+  - python3-pip
+  - ninja-build
+  - make
+  - automake
+  - gcc
+  - gcc-c++
+  - kernel-devel
+  - clang
+  - openssl-devel
+  - libcap-ng
+  - libcap-ng-devel
+  - autoconf
+  - automake
+  - libtool
+  - socat
+  - iperf3
+  - hostname
+  - gdb
+  - patch
+  - cscope
+  - wget
+  - tcpdump
+  - perf
+  - numactl-devel
+  - pciutils
+  - net-tools
+  - nmap-ncat
+  - tmux
+  - glibc
+  - libcap-ng-debuginfo
+  - openssl-libs-debuginfo
+  - zlib-debuginfo
+
+pip_packages:
+  - meson
+  - flake8
+  - tftpy
+  - pyelftools
+  - scapy
+  - pyftpdlib
+  - cryptography
+
+git_repos:
+  - src: https://github.com/DPDK/dpdk.git
+    dest: /root/dpdk/
+    branch: v22.11
+  - src: https://github.com/openvswitch/ovs.git
+    dest: /root/ovs
+  - src: git://github.com/mininet/mininet
+    dest: /root/mininet
+  - src: git://github.com/mininet/openflow
+    dest: /root/openflow
+  - src: https://github.com/ovn-org/ovn.git
+    dest: /root/ovn
