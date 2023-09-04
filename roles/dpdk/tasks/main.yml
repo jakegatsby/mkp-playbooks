@@ -4,15 +4,27 @@
     dest: /root/dpdk
     version: "{{ dpdk_branch }}"
 
-- name: BUILD | build DPDK
-  shell: |
-    source /root/.bashrc
-    meson -Dexamples=all -Dbuildtype=debug -Dplatform=native build --prefix=/usr/
-  args:
-    chdir: /root/dpdk
-    creates: /root/dpdk/build
-    executable: /bin/bash
-  register: dpkg_build_result
+- name: BLOCK
+  block:
+  - name: BUILD | build DPDK
+    shell: |
+      source /root/.bashrc
+      meson -Dexamples=all -Dbuildtype=debug -Dplatform=native build --prefix=/usr/
+    args:
+      chdir: /root/dpdk
+      creates: /root/dpdk/build
+      executable: /bin/bash
+    register: dpkg_build_result
+
+  rescue:
+  - name: CLEAN | clean DPDK build if failed
+    file:
+      path: /root/dpdk/build
+      state: absent
+
+  - name: FAIL
+    fail:
+      msg: "{{ dpkg_build_result }}"
 
 - name: LDCONFIG | update shared libs
   ansible.builtin.command: ldconfig
