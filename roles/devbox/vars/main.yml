@@ -1,0 +1,8 @@
+devbox_pip_packages:
+- meson
+- flake8
+- tftpy
+- pyelftools
+- scapy
+- pyftpdlib
+- cryptography

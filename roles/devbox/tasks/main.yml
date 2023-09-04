@@ -1,2 +1,20 @@
-- name: INCLUDE
+- name: INCLUDE | distro specific tasks
   include_tasks: "{{ ansible_facts.os_family | lower }}.yml"
+
+- name: PIP | install pip packages
+  ansible.builtin.pip:
+    name: "{{ devbox_pip_packages }}"
+    state: present
+
+- name: NINJA-BUILD | get ninja-build release zip
+  unarchive:
+    src: "https://github.com/ninja-build/ninja/releases/download/{{ devbox_ninja_release }}/ninja-linux.zip"
+    dest: /usr/local/bin
+    remote_src: true
+  when: not devbox_rcmtools
+
+- name: PATH | add /usr/local/bin to PATH
+  lineinfile:
+    line: 'export PATH="/usr/local/bin:$PATH"'
+    path: /root/.bashrc
+    insertafter: EOF

@@ -1,3 +1,7 @@
 # Enable the rcmtools repo and install
 # additional packages
 devbox_rcm_tools: false
+
+# If not using rcmtools, jinja will be
+# fetched from the github releases
+devbox_ninja_release: v1.11.1
