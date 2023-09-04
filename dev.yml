@@ -7,3 +7,6 @@
 
   - include_role:
       name: dpdk
+
+  - include_role:
+      name: ovs

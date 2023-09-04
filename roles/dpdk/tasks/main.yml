@@ -1,7 +1,7 @@
 - name: GIT | clone DPDK repo
   ansible.builtin.git:
     repo: https://github.com/DPDK/dpdk.git
-    dest: /root/dpdk
+    dest: "{{ dpdk_src_dir }}"
     version: "{{ dpdk_branch }}"
 
 - name: BLOCK
@@ -11,15 +11,28 @@
       source /root/.bashrc
       meson -Dexamples=all -Dbuildtype=debug -Dplatform=native build --prefix=/usr/
     args:
-      chdir: /root/dpdk
-      creates: /root/dpdk/build
+      chdir: "{{ dpdk_src_dir }}"
+      creates: "{{ dpdk_src_dir }}/build"
       executable: /bin/bash
     register: dpkg_build_result
 
+  - name: INSTALL | install DPDK
+    shell: |
+      source /root/.bashrc
+      ninja install
+    args:
+      chdir: "{{ dpdk_src_dir }}/build"
+      #creates: "{{ dpdk_src_dir }}/build"
+      executable: /bin/bash
+    when: dpkg_build_result.changed
+    async: 900
+    poll: 10
+
   rescue:
+  - fail:  # FIXME
   - name: CLEAN | clean DPDK build if failed
     file:
-      path: /root/dpdk/build
+      path: "{{ dpdk_src_dir }}/build"
       state: absent
 
   - name: FAIL

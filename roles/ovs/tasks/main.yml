@@ -1,0 +1,18 @@
+- name: GIT | clone OVS repo
+  ansible.builtin.git:
+    repo: https://github.com/openvswitch/ovs.git
+    dest: "{{ ovs_src_dir }}"
+    version: "{{ ovs_branch }}"
+
+- name: BOOT | boot OVS
+  command: "{{ ovs_src_dir }}/boot.sh"
+  args:
+    chdir: "{{ ovs_src_dir }}"
+    creates: "{{ ovs_src_dir }}/configure"
+
+- name: CONF | cofigure OVS
+  command: '{{ ovs_src_dir }}/configure CFLAGS="-ggdb -O2 -march=native" --with-dpdk=shared --prefix=/usr --localstatedir=/var --sysconfdir=/etc'
+  args:
+    chdir: "{{ ovs_src_dir }}"
+    creates: "{{ ovs_src_dir }}/Makefile"    
+
