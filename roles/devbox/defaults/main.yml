@@ -1,0 +1,3 @@
+# Enable the rcmtools repo and install
+# additional packages
+devbox_rcm_tools: false

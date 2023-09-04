@@ -1,0 +1,20 @@
+- name: VARS | include vars
+  include_vars: "vars/{{ ansible_facts.os_family | lower}}.yml"
+
+- name: DNF | install devbox packages
+  dnf:
+    name: "{{ devbox_packages }}"
+
+- name: BLOCK
+  when: devbox_rcmtools
+  block:
+  - name: DNF | add rcmtools repo
+    yum_repository:
+      name: rcmtools
+      description: rcmtools
+      baseurl: https://download.devel.redhat.com/rel-eng/RCMTOOLS/latest-RCMTOOLS-2-F-$releasever/compose/Everything/$basearch/os/
+      gpgkey: https://download.devel.redhat.com/rel-eng/RCMTOOLS/RPM-GPG-KEY-rcminternal
+
+  - name: DNF | install devbox rcmtools packages
+    dnf:
+      name: "{{ devbox_rcmtools_packages }}"

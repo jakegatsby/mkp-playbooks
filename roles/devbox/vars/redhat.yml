@@ -1,0 +1,38 @@
+devbox_rcmtools_packages:
+- ninja-build
+- libcap-ng-debuginfo
+- openssl-libs-debuginfo
+- zlib-debuginfo
+
+
+devbox_packages:
+- git
+- python3-pip
+
+- make
+- automake
+- gcc
+- gcc-c++
+- kernel-devel
+- clang
+- openssl-devel
+- libcap-ng
+- libcap-ng-devel
+- autoconf
+- automake
+- libtool
+- socat
+- iperf3
+- hostname
+- gdb
+- patch
+- cscope
+- wget
+- tcpdump
+- perf
+- numactl-devel
+- pciutils
+- net-tools
+- nmap-ncat
+- tmux
+- glibc
