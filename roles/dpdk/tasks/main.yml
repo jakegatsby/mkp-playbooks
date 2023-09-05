@@ -7,23 +7,23 @@
 - name: BLOCK
   block:
   - name: BUILD | build DPDK
-    shell: |
-      source /root/.bashrc
-      meson -Dexamples=all -Dbuildtype=debug -Dplatform=native build --prefix=/usr/
+    shell: meson -Dexamples=all -Dbuildtype=debug -Dplatform=native build --prefix=/usr/
     args:
       chdir: "{{ dpdk_src_dir }}"
       creates: "{{ dpdk_src_dir }}/build"
       executable: /bin/bash
+    environment:
+      BASH_ENV: /root/.bashrc
     register: dpkg_build_result
 
   - name: INSTALL | install DPDK
-    shell: |
-      source /root/.bashrc
-      ninja install
+    shell: ninja install
     args:
       chdir: "{{ dpdk_src_dir }}/build"
       #creates: "{{ dpdk_src_dir }}/build"
       executable: /bin/bash
+    environment:
+      BASH_ENV: /root/.bashrc
     when: dpkg_build_result.changed
     async: 900
     poll: 10
